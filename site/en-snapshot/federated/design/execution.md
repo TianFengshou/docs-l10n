@@ -3,7 +3,7 @@
 [TOC]
 
 The
-[executors](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors)
+[executors](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/python/core/impl/executors)
 package contains core [Executors](#executor) classes and [runtime](#runtime)
 related functionality.
 
@@ -25,24 +25,22 @@ An external runtime is any system that the TFF runtime delegates execution to.
 
 [TensorFlow](https://www.tensorflow.org/) is an open source platform for machine
 learning. Today the TFF runtime delegates mathematical computations to
-TensorFlow using an
-[eager_tf_executor.EagerTFExecutor](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors/eager_tf_executor.py)
-that can be composed into a hierarchy, referred to as an
-[execution stack](#execution-stack).
+TensorFlow using an [Executor](#Executor) that can be composed into a hierarchy,
+referred to as an [execution stack](#execution-stack).
 
 ## `Executor`
 
 An
-[executor_base.Executor](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors/executor_base.py)
+[executor_base.Executor](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/python/core/impl/executors/executor_base.py)
 is an abstract interface that defines the API for executing an
 [AST](compilation.md#ast). The
-[executors](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors)
+[executors](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/python/core/impl/executors)
 package contains a collection of concrete implementations of this interface.
 
 ## `ExecutorFactory`
 
 An
-[executor_factory.ExecutorFactory](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors/executor_factory.py)
+[executor_factory.ExecutorFactory](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/python/core/impl/executors/executor_factory.py)
 is an abstract interface that defines the API for constructing an
 [Executor](#executor). These factories construct the executor lazily and manage
 the lifecycle of the executor; the motivation to lazily constructing executors
@@ -51,19 +49,5 @@ is to infer the number of clients at execution time.
 ## Execution Stack
 
 An execution stack is a hierarchy of [Executors](#executor). The
-[executor_stacks](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors/executor_stacks.py)
-module contains logic for constructing and composing specific execution stacks.
-
-### Local Execution Stack
-
-The
-[executor_stacks.local_executor_factory](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors/executor_stacks.py)
-function constructs a local execution stack that executes an
-[AST](compilation.md#ast) on some number of clients.
-
-### Remote Execution Stack
-
-The
-[executor_stacks.worker_pool_executor_factory](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/core/impl/executors/executor_stacks.py)
-function constructs a remote execution stack that executes an
-[AST](compilation.md#ast) on some service.
+[executor_stacks](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/python/core/impl/executor_stacks)
+package contains logic for constructing and composing specific execution stacks.

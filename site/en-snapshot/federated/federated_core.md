@@ -41,7 +41,7 @@ see expressed in pseudocode in a
 [research publication](https://arxiv.org/pdf/1602.05629.pdf) that describes a
 new distributed learning algorithm.
 
-The goal of FC, in a nusthell, is to enable similarly compact representation, at
+The goal of FC, in a nutshell, is to enable similarly compact representation, at
 a similar pseudocode-like level of abstraction, of program logic that is *not*
 pseudocode, but rather, that's executable in a variety of target environments.
 
@@ -80,7 +80,7 @@ blocks such as `tff.federated_sum`, `tff.federated_reduce`, or
 
 TFF uses an internal language to represent federated computations, the syntax of
 which is defined by the serializable representation in
-[computation.proto](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/proto/v0/computation.proto).
+[computation.proto](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/proto/v0/computation.proto).
 Users of FC API generally won't need to interact with this language directly,
 though. Rather, we provide a Python API (the `tff` namespace) that wraps arounds
 it as a way to define computations.
@@ -96,7 +96,7 @@ Here's just one example; more examples can be found in the
 [custom algorithms](tutorials/custom_federated_algorithms_1.ipynb) tutorials.
 
 ```python
-@tff.federated_computation(tff.FederatedType(tf.float32, tff.CLIENTS))
+@tff.federated_computation(tff.type_at_clients(tf.float32))
 def get_average_temperature(sensor_readings):
   return tff.federated_mean(sensor_readings)
 ```
@@ -134,6 +134,14 @@ found in existing mainstream languages:
     that can be produced, e.g., as an output of a distributed aggregation
     protocol. Thus, the TFF tensor type is simply an abstract version of a
     concrete physical representation of such type in Python or TensorFlow.
+
+    TFF's `TensorTypes` can be stricter in their (static) treatment of shapes
+    than TensorFlow. For example, TFF's typesystem treats a tensor with unknown
+    rank as assignable *from* any other tensor of the same `dtype`, but not
+    assignable *to* any tensor with fixed rank. This treatment prevents certain
+    runtime failures (e.g., attempting to reshape a tensor of unknown rank into
+    a shape with incorrect number of elements), at the cost of greater
+    strictness in what computations TFF accepts as valid.
 
     The compact notation for tensor types is `dtype` or `dtype[shape]`. For
     example, `int32` and `int32[10]` are the types of integers and int vectors,
@@ -283,7 +291,7 @@ public API:
     Here's an example of a lambda expression we've already mentioned earlier:
 
     ```python
-    @tff.federated_computation(tff.FederatedType(tf.float32, tff.CLIENTS))
+    @tff.federated_computation(tff.type_at_clients(tf.float32))
     def get_average_temperature(sensor_readings):
       return tff.federated_mean(sensor_readings)
     ```

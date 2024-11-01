@@ -1,6 +1,9 @@
-# TensorFlow White Papers
+# Citing TensorFlow
 
-This document identifies white papers about TensorFlow.
+TensorFlow publishes a DOI for the open-source code base using Zenodo.org:
+[10.5281/zenodo.4724125](https://doi.org/10.5281/zenodo.4724125)
+
+TensorFlow's white papers are listed for citation below.
 
 ## Large-Scale Machine Learning on Heterogeneous Distributed Systems
 
@@ -40,7 +43,7 @@ title={ {TensorFlow}: Large-Scale Machine Learning on Heterogeneous Systems},
 url={https://www.tensorflow.org/},
 note={Software available from tensorflow.org},
 author={
-    Mart\'{\i}n~Abadi and
+    Mart\'{i}n~Abadi and
     Ashish~Agarwal and
     Paul~Barham and
     Eugene~Brevdo and

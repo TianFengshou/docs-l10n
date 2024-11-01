@@ -14,7 +14,8 @@ model's metrics meet developer-specified criteria relative to the baseline model
 the [Pusher](pusher.md) that it is ok to push the model to production.
 
 *   Consumes:
-    *   An eval split from ExampleGen
+    *   An eval split from
+        [ExampleGen](https://www.tensorflow.org/tfx/guide/examplegen)
     *   A trained model from [Trainer](trainer.md)
     *   A previously blessed model (if validation to be performed)
 *   Emits:
@@ -35,11 +36,11 @@ component.
 
 To setup the evaluator the following information is needed:
 
-*   Metrics to configure (only reqired if additional metrics are being added
+*   Metrics to configure (only required if additional metrics are being added
     outside of those saved with the model). See
     [Tensorflow Model Analysis Metrics](https://github.com/tensorflow/model-analysis/blob/master/g3doc/metrics.md)
     for more information.
-*   Slices to configure (if not slices are given then an "overall" slice will be
+*   Slices to configure (if no slices are given then an "overall" slice will be
     added by default). See
     [Tensorflow Model Analysis Setup](https://github.com/tensorflow/model-analysis/blob/master/g3doc/setup.md)
     for more information.
@@ -57,9 +58,7 @@ that were defined.
 Typical code looks like this:
 
 ```python
-from tfx import components
 import tensorflow_model_analysis as tfma
-
 ...
 
 # For TFMA evaluation
@@ -80,18 +79,16 @@ eval_config = tfma.EvalConfig(
             # model.compile(..., metrics=[...]), etc) will be computed
             # automatically.
             metrics=[
-                tfma.MetricConfig(class_name='ExampleCount')
-            ],
-            # To add validation thresholds for metrics saved with the model,
-            # add them keyed by metric name to the thresholds map.
-            thresholds = {
-                "binary_accuracy": tfma.MetricThreshold(
-                    value_threshold=tfma.GenericValueThreshold(
-                        lower_bound={'value': 0.5}),
-                    change_threshold=tfma.GenericChangeThreshold(
-                       direction=tfma.MetricDirection.HIGHER_IS_BETTER,
-                       absolute={'value': -1e-10}))
-            }
+                tfma.MetricConfig(class_name='ExampleCount'),
+                tfma.MetricConfig(
+                    class_name='BinaryAccuracy',
+                    threshold=tfma.MetricThreshold(
+                        value_threshold=tfma.GenericValueThreshold(
+                            lower_bound={'value': 0.5}),
+                        change_threshold=tfma.GenericChangeThreshold(
+                            direction=tfma.MetricDirection.HIGHER_IS_BETTER,
+                            absolute={'value': -1e-10})))
+            ]
         )
     ],
     slicing_specs=[
@@ -104,16 +101,45 @@ eval_config = tfma.EvalConfig(
 
 # The following component is experimental and may change in the future. This is
 # required to specify the latest blessed model will be used as the baseline.
-model_resolver = ResolverNode(
-      instance_name='latest_blessed_model_resolver',
-      resolver_class=latest_blessed_model_resolver.LatestBlessedModelResolver,
+model_resolver = Resolver(
+      strategy_class=dsl.experimental.LatestBlessedModelStrategy,
       model=Channel(type=Model),
-      model_blessing=Channel(type=ModelBlessing))
+      model_blessing=Channel(type=ModelBlessing)
+).with_id('latest_blessed_model_resolver')
 
-model_analyzer = components.Evaluator(
+model_analyzer = Evaluator(
       examples=examples_gen.outputs['examples'],
       model=trainer.outputs['model'],
       baseline_model=model_resolver.outputs['model'],
       # Change threshold will be ignored if there is no baseline (first run).
       eval_config=eval_config)
 ```
+
+The evaluator produces an
+[EvalResult](https://www.tensorflow.org/tfx/model_analysis/api_docs/python/tfma/EvalResult)
+(and optionally a
+[ValidationResult](https://www.tensorflow.org/tfx/model_analysis/api_docs/python/tfma/ValidationResult)
+if validation was used) that can be loaded using [TFMA](tfma.md). The following
+is an example of how to load the results into a Jupyter notebook:
+
+```
+import tensorflow_model_analysis as tfma
+
+output_path = evaluator.outputs['evaluation'].get()[0].uri
+
+# Load the evaluation results.
+eval_result = tfma.load_eval_result(output_path)
+
+# Visualize the metrics and plots using tfma.view.render_slicing_metrics,
+# tfma.view.render_plot, etc.
+tfma.view.render_slicing_metrics(tfma_result)
+...
+
+# Load the validation results
+validation_result = tfma.load_validation_result(output_path)
+if not validation_result.validation_ok:
+  ...
+```
+
+More details are available in the
+[Evaluator API reference](https://www.tensorflow.org/tfx/api_docs/python/tfx/v1/components/Evaluator).

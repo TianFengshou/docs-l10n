@@ -138,7 +138,7 @@ tf.ready().then(() => {...});
 ##### Why WASM?
 
 [WASM](https://webassembly.org/) was introduced in 2015 as a new web-based binary format, providing programs written
-in JavaScript, C, C++, etc. a compilation target for running on the web. WASM has been [supported](https://webassembly.org/roadmap/)
+in JavaScript, C, C++, etc. with a compilation target for running on the web. WASM has been [supported](https://webassembly.org/roadmap/)
 by Chrome, Safari, Firefox, and Edge since 2017, and is supported by [90% of devices](https://caniuse.com/#feat=wasm)
 worldwide.
 
@@ -196,7 +196,7 @@ on WASM.
 ##### Inference vs Training
 
 To address the primary use-case for deployment of pre-trained models, the WASM backend development will prioritize
-*inference* over *training* support. See an [up-to-date list](https://github.com/tensorflow/tfjs/blob/master/tfjs-backend-wasm/src/kernels/all_kernels.ts)
+*inference* over *training* support. See an [up-to-date list](https://github.com/tensorflow/tfjs/blob/master/tfjs-backend-wasm/src/register_all_kernels.ts)
 of supported ops in WASM and [let us know](https://github.com/tensorflow/tfjs/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc)
 if your model has an unsupported op. For training models, we recommend using the Node (TensorFlow C++) backend or the
 WebGL backend.

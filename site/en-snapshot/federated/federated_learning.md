@@ -16,9 +16,9 @@ The interfaces offered by this layer consist of the following three key parts:
 
 *   **Models**. Classes and helper functions that allow you to wrap your
     existing models for use with TFF. Wrapping a model can be as simple as
-    calling a single wrapping function (e.g., `tff.learning.from_keras_model`),
-    or defining a subclass of the `tff.learning.Model` interface for full
-    customizability.
+    calling a single wrapping function (e.g.,
+    `tff.learning.models.from_keras_model`), or defining a subclass of the
+    `tff.learning.models.VariableModel` interface for full customizability.
 
 *   **Federated Computation Builders**. Helper functions that construct
     federated computations for training or evaluation, using your existing
@@ -77,10 +77,10 @@ eager-mode TensorFlow. Thus, serialization in TFF currently follows the TF 1.0
 pattern, where all code must be constructed inside a `tf.Graph` that TFF
 controls. This means currently TFF cannot consume an already-constructed model;
 instead, the model definition logic is packaged in a no-arg function that
-returns a `tff.learning.Model`. This function is then called by TFF to ensure
-all components of the model are serialized. In addition, being a strongly-typed
-environment, TFF will require a little bit of additional *metadata*, such as a
-specification of your model's input type.
+returns a `tff.learning.models.VariableModel`. This function is then called by
+TFF to ensure all components of the model are serialized. In addition, being a
+strongly-typed environment, TFF will require a little bit of additional
+*metadata*, such as a specification of your model's input type.
 
 #### Aggregation
 
@@ -88,7 +88,7 @@ We strongly recommend most users construct models using Keras, see the
 [Converters for Keras](#converters-for-keras) section below. These wrappers
 handle the aggregation of model updates as well as any metrics defined for the
 model automatically. However, it may still be useful to understand how
-aggregation is handled for a general `tff.learning.Model`.
+aggregation is handled for a general `tff.learning.models.VariableModel`.
 
 There are always at least two layers of aggregation in federated learning: local
 on-device aggregation, and cross-device (or federated) aggregation:
@@ -114,11 +114,11 @@ on-device aggregation, and cross-device (or federated) aggregation:
         sequentially over subsequent batches of client data, which allows you to
         update the variables holding various aggregates as a side effect.
 
-    *   Finally, TFF invokes the `report_local_outputs` method on your Model to
-        allow your model to compile all the summary statistics it collected into
-        a compact set of metrics to be exported by the client. This is where
-        your model code may, for example, divide the sum of losses by the number
-        of examples processed to export the average loss, etc.
+    *   Finally, TFF invokes the `report_local_unfinalized_metrics` method on
+        your Model to allow your model to compile all the summary statistics it
+        collected into a compact set of metrics to be exported by the client.
+        This is where your model code may, for example, divide the sum of losses
+        by the number of examples processed to export the average loss, etc.
 
 *   **Federated aggregation**. This level of aggregation refers to aggregation
     across multiple clients (devices) in the system. Again, it applies to both
@@ -142,20 +142,19 @@ on-device aggregation, and cross-device (or federated) aggregation:
     *   TFF runs a distributed aggregation protocol to accumulate and aggregate
         the model parameters and locally exported metrics across the system.
         This logic is expressed in a declarative manner using TFF's own
-        *federated computation* language (not in TensorFlow), in the Model's
-        `federated_output_computation.` See the
+        *federated computation* language (not in TensorFlow). See the
         [custom algorithms](tutorials/custom_federated_algorithms_1.ipynb)
         tutorial for more on the aggregation API.
 
 ### Abstract interfaces
 
 This basic *constructor* + *metadata* interface is represented by the interface
-`tff.learning.Model`, as follows:
+`tff.learning.models.VariableModel`, as follows:
 
-*   The constructor, `forward_pass`, and `report_local_outputs` methods should
-    construct model variables, forward pass, and statistics you wish to report,
-    correspondingly. The TensorFlow constructed by those methods must be
-    serializable, as discussed above.
+*   The constructor, `forward_pass`, and `report_local_unfinalized_metrics`
+    methods should construct model variables, forward pass, and statistics you
+    wish to report, correspondingly. The TensorFlow constructed by those methods
+    must be serializable, as discussed above.
 
 *   The `input_spec` property, as well as the 3 properties that return subsets
     of your trainable, non-trainable, and local variables represent the
@@ -165,22 +164,28 @@ This basic *constructor* + *metadata* interface is represented by the interface
     system (so that your model cannot be instantiated over data that does not
     match what the model is designed to consume).
 
-In addition, the abstract interface `tff.learning.Model` exposes a property
-`federated_output_computation` that, together with the `report_local_outputs`
-property mentioned earlier, allows you to control the process of aggregating
-summary statistics.
+In addition, the abstract interface `tff.learning.models.VariableModel` exposes
+a property `metric_finalizers` that takes in a metric's unfinalized values
+(returned by `report_local_unfinalized_metrics()`) and returns the finalized
+metric values. The `metric_finalizers` and `report_local_unfinalized_metrics()`
+method will be used together to build a cross-client metrics aggregator when
+defining the federated training processes or evaluation computations. For
+example, a simple `tff.learning.metrics.sum_then_finalize` aggregator will first
+sum the unfinalized metric values from clients, and then call the finalizer
+functions at the server.
 
-You can find examples of how to define your own custom `tf.learning.Model` in
-the second part of our
+You can find examples of how to define your own custom
+`tff.learning.models.VariableModel` in the second part of our
 [image classification](tutorials/federated_learning_for_image_classification.ipynb)
 tutorial, as well as in the example models we use for testing in
-[`model_examples.py`](https://github.com/tensorflow/federated/blob/master/tensorflow_federated/python/learning/model_examples.py).
+[`model_examples.py`](https://github.com/tensorflow/federated/blob/main/tensorflow_federated/python/learning/models/model_examples.py).
 
 ### Converters for Keras
 
 Nearly all the information that's required by TFF can be derived by calling
 `tf.keras` interfaces, so if you have a Keras model, you can rely on
-`tff.learning.from_keras_model` to construct a `tff.learning.Model`.
+`tff.learning.models.from_keras_model` to construct a
+`tff.learning.models.VariableModel`.
 
 Note that TFF still wants you to provide a constructor - a no-argument *model
 function* such as the following:
@@ -188,7 +193,7 @@ function* such as the following:
 ```python
 def model_fn():
   keras_model = ...
-  return tff.learning.from_keras_model(keras_model, sample_batch, loss=...)
+  return tff.learning.models.from_keras_model(keras_model, sample_batch, loss=...)
 ```
 
 In addition to the model itself, you supply a sample batch of data which TFF
@@ -277,12 +282,14 @@ corresponding to the initialization and iteration, respectively.
 
 ### Available builders
 
-At the moment, TFF provides two builder functions that generate the federated
-computations for federated training and evaluation:
+At the moment, TFF provides various builder functions that generate federated
+computations for federated training and evaluation. Two notable examples
+include:
 
-*   `tff.learning.build_federated_averaging_process` takes a *model function*
-    and a *client optimizer*, and returns a stateful
-    `tff.templates.IterativeProcess`.
+*   `tff.learning.algorithms.build_weighted_fed_avg`, which takes as input a
+    *model function* and a *client optimizer*, and returns a stateful
+    `tff.learning.templates.LearningProcess` (which subclasses
+    `tff.templates.IterativeProcess`).
 
 *   `tff.learning.build_federated_evaluation` takes a *model function* and
     returns a single federated computation for federated evaluation of models,
@@ -317,7 +324,7 @@ In order to simulate a realistic deployment of your federated learning code, you
 will generally write a training loop that looks like this:
 
 ```python
-trainer = tff.learning.build_federated_averaging_process(...)
+trainer = tff.learning.algorithms.build_weighted_fed_avg(...)
 state = trainer.initialize()
 federated_training_data = ...
 
@@ -326,7 +333,8 @@ def sample(federate_data):
 
 while True:
   data_for_this_round = sample(federated_training_data)
-  state, metrics = trainer.next(state, data_for_this_round)
+  result = trainer.next(state, data_for_this_round)
+  state = result.state
 ```
 
 In order to facilitate this, when using TFF in simulations, federated data is
@@ -336,15 +344,15 @@ represent that device's local `tf.data.Dataset`.
 ### Abstract interfaces
 
 In order to standardize dealing with simulated federated data sets, TFF provides
-an abstract interface `tff.simulation.ClientData`, which allows one to enumerate
-the set of clients, and to construct a `tf.data.Dataset` that contains the data
-of a particular client. Those `tf.data.Dataset`s can be fed directly as input to
-the generated federated computations in eager mode.
+an abstract interface `tff.simulation.datasets.ClientData`, which allows one to
+enumerate the set of clients, and to construct a `tf.data.Dataset` that contains
+the data of a particular client. Those `tf.data.Dataset`s can be fed directly as
+input to the generated federated computations in eager mode.
 
 It should be noted that the ability to access client identities is a feature
 that's only provided by the datasets for use in simulations, where the ability
 to train on data from specific subsets of clients may be needed (e.g., to
-simulate the diurnal avaiablity of different types of clients). The compiled
+simulate the diurnal availability of different types of clients). The compiled
 computations and the underlying runtime do *not* involve any notion of client
 identity. Once data from a specific subset of clients has been selected as an
 input, e.g., in a call to `tff.templates.IterativeProcess.next`, client
@@ -353,9 +361,9 @@ identities no longer appear in it.
 ### Available data sets
 
 We have dedicated the namespace `tff.simulation.datasets` for datasets that
-implement the `tff.simulation.ClientData` interface for use in simulations, and
-seeded it with 2 data sets to support the
+implement the `tff.simulation.datasets.ClientData` interface for use in
+simulations, and seeded it with datasets to support the
 [image classification](tutorials/federated_learning_for_image_classification.ipynb)
 and [text generation](tutorials/federated_learning_for_text_generation.ipynb)
-tutorials. We'd like to encourage you to contribute your own data sets to the
+tutorials. We'd like to encourage you to contribute your own datasets to the
 platform.

@@ -34,7 +34,7 @@ release 0.12.1.  However, release 1.1.1 was backwards *compatible* with release
 Only the public APIs of TensorFlow are backwards compatible across minor and
 patch versions.  The public APIs consist of
 
-* All the documented [Python](../api_docs/python) functions and classes in the
+* All the documented [Python](https://www.tensorflow.org/api_docs/python) functions and classes in the
   `tensorflow` module and its submodules, except for
 
     * Private symbols: any function, class, etc., whose name start with `_`
@@ -56,8 +56,13 @@ patch versions.  The public APIs consist of
   other than to fix vulnerabilities), but they do fall under our compatibility
   guarantees.
 
-* The [C API](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/c/c_api.h).
+* The TensorFlow C API:
+    * [tensorflow/c/c_api.h](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/c/c_api.h))
 
+* The TensorFlow Lite C API:
+     * [tensorflow/lite/c/c_api.h](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/c/c_api.h)
+     * [tensorflow/lite/c/c_api_types.h](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/c/c_api_types.h).
+     
 * The following protocol buffer files:
 
     * [`attr_value`](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/attr_value.proto)
@@ -91,10 +96,10 @@ These include:
 *   **Other languages**: TensorFlow APIs in languages other than Python and C,
     such as:
 
-    -   [C++](../install/lang_c.md) (exposed through header files in
+    -   [C++](../install/lang_c.ipynb) (exposed through header files in
         [`tensorflow/cc`](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/cc)).
-    -   [Java](../install/lang_java.md),
-    -   [Go](../install/lang_go.md)
+    -   [Java](../install/lang_java_legacy.md),
+    -   [Go](https://github.com/tensorflow/build/blob/master/golang_install_guide/README.md)
     -   [JavaScript](https://www.tensorflow.org/js)
 
 *   **Details of composite ops:** Many public functions in Python expand to
@@ -222,7 +227,8 @@ This section is relevant only when making incompatible changes to the `GraphDef`
 format, such as when adding ops, removing ops, or changing the functionality
 of existing ops.  The previous section should suffice for most users.
 
-<a id="backward_forward"/>
+<a id="backward_forward"></a>
+
 
 ### Backward and partial forward compatibility
 

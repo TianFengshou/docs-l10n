@@ -1,3 +1,4 @@
+
 # TF1 Hub format
 
 At its launch in 2018, TensorFlow Hub offered a single type of asset: TF1 Hub
@@ -23,6 +24,7 @@ A model in TF1 Hub format is imported into a TensorFlow program by creating a
 ```python
 m = hub.Module("path/to/a/module_dir")
 ```
+**Note:** See more information regarding other valid handle types [here](tf2_saved_model.md#model_handles).
 
 This adds the module's variables to the current TensorFlow graph.
 Running their initializers will read their pre-trained values from disk.
@@ -78,7 +80,7 @@ handle additional outputs gracefully.
 ### Trying out alternative modules
 
 Whenever there are multiple modules for the same task, TensorFlow Hub
-encourages to equip them with compatible signartures (interfaces)
+encourages to equip them with compatible signatures (interfaces)
 such that trying different ones is as easy as varying the module handle
 as a string-valued hyperparameter.
 
@@ -173,25 +175,24 @@ for example, a lower learning rate than for training from scratch.
 
 To make fine-tuning easier for consumers, please be mindful of the following:
 
-  * Fine-tuning needs regularization. Your module is exported with the
+*   Fine-tuning needs regularization. Your module is exported with the
     `REGULARIZATION_LOSSES` collection, which is what puts your choice of
     `tf.layers.dense(..., kernel_regularizer=...)` etc. into what the consumer
     gets from `tf.losses.get_regularization_losses()`. Prefer this way of
     defining L1/L2 regularization losses.
 
-  * In the publisher model, avoid defining L1/L2 regularization via the `l1_`
+*   In the publisher model, avoid defining L1/L2 regularization via the `l1_`
     and `l2_regularization_strength` parameters of `tf.train.FtrlOptimizer`,
-    `tf.train.ProximalGradientDescentOptimizer`, and other proximal
-    optimizers. These are not exported alongside the module, and setting
-    regularization strengths globally may not be appropriate for the
-    consumer. Except for L1 regularization in wide (i.e. sparse linear) or wide
-    & deep models, it should be possible to use individual regularization losses
-    instead.
+    `tf.train.ProximalGradientDescentOptimizer`, and other proximal optimizers.
+    These are not exported alongside the module, and setting regularization
+    strengths globally may not be appropriate for the consumer. Except for L1
+    regularization in wide (i.e. sparse linear) or wide & deep models, it should
+    be possible to use individual regularization losses instead.
 
-  * If you use dropout, batch normalization, or similar training techniques, set
+*   If you use dropout, batch normalization, or similar training techniques, set
     their hyperparameters to values that make sense across many expected uses.
-    The dropout rate may have to be adjusted to the target problem's
-    propensity to overfitting. In batch normalization, the momentum (a.k.a.
-    decay coefficient) should be small enough to enable fine-tuning with
-    small datasets and/or large batches.  For advanced consumers, consider
-    adding a signature that exposes control over critcial hyperparameters.
+    The dropout rate may have to be adjusted to the target problem's propensity
+    to overfitting. In batch normalization, the momentum (a.k.a. decay
+    coefficient) should be small enough to enable fine-tuning with small
+    datasets and/or large batches. For advanced consumers, consider adding a
+    signature that exposes control over critical hyperparameters.

@@ -1,3 +1,4 @@
+
 # Reusable SavedModels
 
 ## Introduction
@@ -16,7 +17,7 @@ in order to be *reused* in a TensorFlow Python program.
 SavedModels conforming to this interface are called *Reusable SavedModels*.
 
 Reusing means building a larger model around `obj`, including the ability
-to fine-tune. Fine-tuning means further training of the weights in the loaded
+to fine-tune it. Fine-tuning means further training of the weights in the loaded
 `obj` as part of the surrounding model. The loss function and the
 optimizer are determined by the surrounding model; `obj` only defines
 the mapping of input to output activations (the "forward pass"), possibly
@@ -33,27 +34,35 @@ This interface in terms of tf.functions and other TF2 features
 is separate from the SavedModel's signatures, which have been
 available since TF1 and continue to be used in TF2 for inference
 (such as deploying SavedModels to TF Serving or TF Lite).
-signatures for inference are not expressive enough to support fine-tuning,
+Signatures for inference are not expressive enough to support fine-tuning,
 and [`tf.function`](https://www.tensorflow.org/api_docs/python/tf/function)
 provides a more natural and expressive
 [Python API](https://www.tensorflow.org/tutorials/customization/performance)
 for the reused model.
 
-### Relation to model-building APIs
+### Relation to model-building libraries
 
-A Reusable SavedModel uses only TensorFlow 2 primitives, independent
-of any particular model-building API like Keras or Sonnet. This facilitates
-reuse across model-building APIs, free from dependencies on the original model
-building code.
+A Reusable SavedModel uses only TensorFlow 2 primitives, independent of any
+particular model-building library like Keras or Sonnet. This facilitates reuse
+across model-building libraries, free from dependencies on the original
+model-building code.
 
-Some amount of adaptation will be needed load Reusable SavedModels into
-or save them from any given model-building API. For Keras,
-`hub.KerasLayer` provides the loading, and Keras's built-in saving in the
-SavedModel format has been redesigned for TF2 with the goal of providing
-a superset of this interface (see the
+Some amount of adaptation will be needed load Reusable SavedModels into or save
+them from any given model-building library. For Keras,
+[hub.KerasLayer](https://www.tensorflow.org/hub/api_docs/python/hub/KerasLayer)
+provides the loading, and Keras's built-in saving in the SavedModel format has
+been redesigned for TF2 with the goal of providing a superset of this interface
+(see the
 [RFC](https://github.com/tensorflow/community/blob/master/rfcs/20190509-keras-saved-model.md)
 from May 2019).
 
+### Relation to task-specific "Common SavedModel APIs"
+
+The interface definition on this page allows for any number and type of inputs
+and outputs. The
+[Common SavedModel APIs for TF Hub](common_saved_model_apis/index.md) refine
+this general interface with usage conventions for specific tasks to make models
+easily interchangeable.
 
 ## Interface definition
 
@@ -181,12 +190,10 @@ For the example above, there would be `obj.foo.__call__`,
 Note that this interface does *not* cover the approach of adding
 a bare tf.function directly as `tf.foo`.
 
-Users of Reusable SavedModels are only expected to handle one level
-of nesting (`obj.bar` but not `obj.bar.baz`).
-(Future revisions of this interface may allow deeper nesting,
-and may waive the reqirement that the top-level object be callable
-itself.)
-
+Users of Reusable SavedModels are only expected to handle one level of nesting
+(`obj.bar` but not `obj.bar.baz`). (Future revisions of this interface may allow
+deeper nesting, and may waive the requirement that the top-level object be
+callable itself.)
 
 ## Closing remarks
 

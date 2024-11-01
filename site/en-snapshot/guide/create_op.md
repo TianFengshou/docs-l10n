@@ -47,7 +47,7 @@ To incorporate your custom op you'll need to:
     test the op in C++. If you define gradients, you can verify them with the
     Python `tf.test.compute_gradient_error`.
     See
-    [`relu_op_test.py`](https://www.tensorflow.org/code/tensorflow/python/kernel_tests/relu_op_test.py) as
+    [`relu_op_test.py`](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/kernel_tests/nn_ops/relu_op_test.py) as
     an example that tests the forward functions of Relu-like operators and
     their gradients.
 
@@ -55,8 +55,8 @@ To incorporate your custom op you'll need to:
 
 *   Some familiarity with C++.
 *   Must have installed the
-    [TensorFlow binary](../../install), or must have
-    [downloaded TensorFlow source](../../install/source.md),
+    [TensorFlow binary](https://www.tensorflow.org/install), or must have
+    [downloaded TensorFlow source](https://www.tensorflow.org/install/source),
     and be able to build it.
 
 ## Define the op interface
@@ -188,6 +188,8 @@ Here is an example implementation.
 #ifndef KERNEL_EXAMPLE_H_
 #define KERNEL_EXAMPLE_H_
 
+#include <unsupported/Eigen/CXX11/Tensor>
+
 template <typename Device, typename T>
 struct ExampleFunctor {
   void operator()(const Device& d, int size, const T* in, T* out);
@@ -207,12 +209,24 @@ struct ExampleFunctor<Eigen::GpuDevice, T> {
 ```c++
 // kernel_example.cc
 #include "kernel_example.h"
+
+#include "tensorflow/core/framework/op.h"
+#include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op_kernel.h"
 
 using namespace tensorflow;
 
 using CPUDevice = Eigen::ThreadPoolDevice;
 using GPUDevice = Eigen::GpuDevice;
+
+REGISTER_OP("Example")
+    .Attr("T: numbertype")
+    .Input("input: T")
+    .Output("input_times_two: T")
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      c->set_output(0, c->input(0));
+      return Status::OK();
+    });
 
 // CPU specialization of actual computation.
 template <typename T>
@@ -276,7 +290,7 @@ REGISTER_GPU(int32);
 // kernel_example.cu.cc
 #ifdef GOOGLE_CUDA
 #define EIGEN_USE_GPU
-#include "example.h"
+#include "kernel_example.h"
 #include "tensorflow/core/util/gpu_kernel_helper.h"
 
 using namespace tensorflow;
@@ -340,18 +354,19 @@ to compile your op into a dynamic library.
 ```bash
 TF_CFLAGS=( $(python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
 TF_LFLAGS=( $(python -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))') )
-g++ -std=c++11 -shared zero_out.cc -o zero_out.so -fPIC ${TF_CFLAGS[@]} ${TF_LFLAGS[@]} -O2
+g++ -std=c++14 -shared zero_out.cc -o zero_out.so -fPIC ${TF_CFLAGS[@]} ${TF_LFLAGS[@]} -O2
 ```
 
 On macOS, the additional flag "-undefined dynamic_lookup" is required when
 building the `.so` file.
 
->   Note on `gcc` version `>=5`: gcc uses the new C++
->   [ABI](https://gcc.gnu.org/gcc-5/changes.html#libstdcxx) since version `5`. The binary pip
->   packages available on the TensorFlow website are built with `gcc4` that uses
->   the older ABI. If you compile your op library with `gcc>=5`, add
->   `-D_GLIBCXX_USE_CXX11_ABI=0` to the command line to make the library
->   compatible with the older abi.
+> Note on `gcc` version `>=5`: gcc uses the new C++
+> [ABI](https://gcc.gnu.org/gcc-5/changes.html#libstdcxx) since version `5`.
+> TensorFlow 2.8 and earlier were built with `gcc4` that uses the older ABI. If
+> you are using these versions of TensorFlow and are trying to compile your op
+> library with `gcc>=5`, add `-D_GLIBCXX_USE_CXX11_ABI=0` to the command line to
+> make the library compatible with the older ABI. TensorFlow 2.9+ packages are
+> compatible with the newer ABI by default.
 
 ### Compile the op using bazel (TensorFlow source installation)
 
@@ -372,6 +387,27 @@ Run the following command to build `zero_out.so`.
 
 ```bash
 $ bazel build --config opt //tensorflow/core/user_ops:zero_out.so
+```
+
+For compiling the `Example` operation, with the CUDA Kernel, you need to use the `gpu_srcs` parameter
+of `tf_custom_op_library`. Place a BUILD file with the following Bazel build rule in a new folder
+inside the [`tensorflow/core/user_ops`][user_ops] directory (e.g. "example_gpu").
+
+```python
+load("//tensorflow:tensorflow.bzl", "tf_custom_op_library")
+
+tf_custom_op_library(
+    # kernel_example.cc  kernel_example.cu.cc  kernel_example.h
+    name = "kernel_example.so",
+    srcs = ["kernel_example.h", "kernel_example.cc"],
+    gpu_srcs = ["kernel_example.cu.cc", "kernel_example.h"],
+)
+```
+
+Run the following command to build `kernel_example.so`.
+
+```bash
+$ bazel build --config opt //tensorflow/core/user_ops/example_gpu:kernel_example.so
 ```
 
 Note: As explained above, if you are compiling with gcc>=5 add
@@ -395,8 +431,7 @@ do the following to run it from Python:
 ```python
 import tensorflow as tf
 zero_out_module = tf.load_op_library('./zero_out.so')
-with tf.Session(''):
-  zero_out_module.zero_out([[1, 2], [3, 4]]).eval()
+print(zero_out_module.zero_out([[1, 2], [3, 4]]).numpy())
 
 # Prints
 array([[1, 0], [0, 0]], dtype=int32)
@@ -490,10 +525,10 @@ This asserts that the input is a vector, and returns having set the
     of a tensor in
     [`tensorflow/core/framework/tensor_shape.h`](https://www.tensorflow.org/code/tensorflow/core/framework/tensor_shape.h)
 *   The error itself, which is represented by a `Status` object, see
-    [`tensorflow/core/lib/core/status.h`](https://www.tensorflow.org/code/tensorflow/core/lib/core/status.h). A
+    [`tensorflow/core/platform/status.h`](https://www.tensorflow.org/code/tensorflow/core/platform/status.h). A
     `Status` has both a type (frequently `InvalidArgument`, but see the list of
     types) and a message.  Functions for constructing an error may be found in
-    [`tensorflow/core/lib/core/errors.h`][validation-macros].
+    [`tensorflow/core/platform/errors.h`][validation-macros].
 
 Alternatively, if you want to test whether a `Status` object returned from some
 function is an error, and if so return it, use
@@ -1251,10 +1286,10 @@ and
 into a single dynamically loadable library:
 
 ```bash
-nvcc -std=c++11 -c -o cuda_op_kernel.cu.o cuda_op_kernel.cu.cc \
+nvcc -std=c++14 -c -o cuda_op_kernel.cu.o cuda_op_kernel.cu.cc \
   ${TF_CFLAGS[@]} -D GOOGLE_CUDA=1 -x cu -Xcompiler -fPIC
 
-g++ -std=c++11 -shared -o cuda_op_kernel.so cuda_op_kernel.cc \
+g++ -std=c++14 -shared -o cuda_op_kernel.so cuda_op_kernel.cc \
   cuda_op_kernel.cu.o ${TF_CFLAGS[@]} -fPIC -lcudart ${TF_LFLAGS[@]}
 ```
 
@@ -1344,6 +1379,13 @@ Details about registering gradient functions with
 Note that at the time the gradient function is called, only the data flow graph
 of ops is available, not the tensor data itself.  Thus, all computation must be
 performed using other tensorflow ops, to be run at graph execution time.
+
+Add type hints when registering the custom gradient for an op type to make the
+code more readable, debuggable, easier to maintain, and more robust through data
+validation. For example, when taking an `op` as a parameter in a function,
+specify that the gradient function will take an
+<a href="https://www.tensorflow.org/api_docs/python/tf/Operation"><code>tf.Operation</code></a>
+as its parameter type.
 
 ### Shape functions in C++
 
@@ -1463,7 +1505,7 @@ of building TensorFlow from source.
 [standard_ops-py]:https://www.tensorflow.org/code/tensorflow/python/ops/standard_ops.py
 [standard_ops-cc]:https://www.tensorflow.org/code/tensorflow/cc/ops/standard_ops.h
 [python-BUILD]:https://www.tensorflow.org/code/tensorflow/python/BUILD
-[validation-macros]:https://www.tensorflow.org/code/tensorflow/core/lib/core/errors.h
+[validation-macros]:https://www.tensorflow.org/code/tensorflow/core/platform/errors.h
 [op_def_builder]:https://www.tensorflow.org/code/tensorflow/core/framework/op_def_builder.h
 [register_types]:https://www.tensorflow.org/code/tensorflow/core/framework/register_types.h
 [FinalizeAttr]:https://www.tensorflow.org/code/tensorflow/core/framework/op_def_builder.cc

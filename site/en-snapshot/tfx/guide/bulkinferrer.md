@@ -7,13 +7,11 @@ contains the original features and the prediction results.
 
 BulkInferrer consumes:
 
-*   A Trained model in
+*   A trained model in
     [SavedModel](https://www.tensorflow.org/guide/saved_model.md) format.
-*   Validation result from
+*   Unlabelled tf.Examples that contain features.
+*   (Optional) Validation result from
     [Evaluator](https://www.tensorflow.org/tfx/guide/evaluator.md) component.
-*   Unlabelled
-    [tf.Examples](https://www.tensorflow.org/tutorials/load_data/tfrecord.md)
-    that contain features.
 
 BulkInferrer emits:
 
@@ -34,11 +32,7 @@ Remote inference requires the model to be hosted on Cloud AI Platform.
 Typical code looks like this:
 
 ```python
-from tfx import components
-
-...
-
-bulk_inferrer = components.BulkInferrer(
+bulk_inferrer = BulkInferrer(
     examples=examples_gen.outputs['examples'],
     model=trainer.outputs['model'],
     model_blessing=evaluator.outputs['blessing'],
@@ -48,4 +42,4 @@ bulk_inferrer = components.BulkInferrer(
 ```
 
 More details are available in the
-[BulkInferrer API reference](https://www.tensorflow.org/tfx/api_docs/python/tfx/components/BulkInferrer).
+[BulkInferrer API reference](https://www.tensorflow.org/tfx/api_docs/python/tfx/v1/components/BulkInferrer).

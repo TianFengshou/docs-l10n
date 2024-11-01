@@ -83,9 +83,7 @@ def trainer_fn(trainer_fn_args, schema):
 ```
 
 Other than the user module file of Trainer, the rest of the pipeline remains
-unchanged. Here is an end-to-end TFX example using Keras with
-model_to_estimator:
-[Iris example (model_to_estimator)](https://github.com/tensorflow/tfx/blob/r0.21/tfx/examples/iris/iris_utils.py)
+unchanged.
 
 ## Native Keras (i.e. Keras without `model_to_estimator`)
 
@@ -97,8 +95,8 @@ for FeatureColumns.
 
 Here are several examples with native Keras:
 
-*   [Iris](https://github.com/tensorflow/tfx/blob/master/tfx/examples/iris/iris_pipeline_native_keras.py)
-    ([module file](https://github.com/tensorflow/tfx/blob/master/tfx/examples/iris/iris_utils_native_keras.py)):
+*   [Penguin](https://github.com/tensorflow/tfx/blob/master/tfx/examples/penguin/penguin_pipeline_local.py)
+    ([module file](https://github.com/tensorflow/tfx/blob/master/tfx/examples/penguin/penguin_utils_keras.py)):
     'Hello world' end-to-end example.
 *   [MNIST](https://github.com/tensorflow/tfx/blob/master/tfx/examples/mnist/mnist_pipeline_native_keras.py)
     ([module file](https://github.com/tensorflow/tfx/blob/master/tfx/examples/mnist/mnist_utils_native_keras.py)):
@@ -152,9 +150,11 @@ def run_fn(fn_args: TrainerFnArgs):
   tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
 
   # Train and eval files contains transformed examples.
-  # _input_fn read dataset based on transformed feature_spec from tft.
-  train_dataset = _input_fn(fn_args.train_files, tf_transform_output, 40)
-  eval_dataset = _input_fn(fn_args.eval_files, tf_transform_output, 40)
+  # _input_fn read dataset based on transformed schema from tft.
+  train_dataset = _input_fn(fn_args.train_files, fn_args.data_accessor,
+                            tf_transform_output.transformed_metadata.schema)
+  eval_dataset = _input_fn(fn_args.eval_files, fn_args.data_accessor,
+                           tf_transform_output.transformed_metadata.schema)
 
   model = _build_keras_model()
 
@@ -204,7 +204,7 @@ def _get_serve_tf_examples_fn(model, tf_transform_output):
 
 In above serving function, tf.Transform transformations need to be applied to
 the raw data for inference, using the
-[`tft.TransformFeaturesLayer`](https://github.com/tensorflow/transform/blob/master/docs/api_docs/python/tft/TransformFeaturesLayer.md)
+[`tft.TransformFeaturesLayer`](https://www.tensorflow.org/tfx/transform/api_docs/python/tft/TransformFeaturesLayer)
 layer. The previous `_serving_input_receiver_fn` which was required for
 Estimators will no longer be needed with Keras.
 
@@ -229,9 +229,9 @@ def run_fn(fn_args: TrainerFnArgs):
   schema = io_utils.parse_pbtxt_file(fn_args.schema_file, schema_pb2.Schema())
 
   # Train and eval files contains raw examples.
-  # _input_fn reads the dataset based on raw feature_spec from schema.
-  train_dataset = _input_fn(fn_args.train_files, schema, 40)
-  eval_dataset = _input_fn(fn_args.eval_files, schema, 40)
+  # _input_fn reads the dataset based on raw data schema.
+  train_dataset = _input_fn(fn_args.train_files, fn_args.data_accessor, schema)
+  eval_dataset = _input_fn(fn_args.eval_files, fn_args.data_accessor, schema)
 
   model = _build_keras_model()
 

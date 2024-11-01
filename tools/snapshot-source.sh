@@ -12,13 +12,15 @@ usage() {
   echo "  Copy source docs from all projects into local directory."
   echo "Options:"
   echo " -c     Auto-create the git commit w/ status message"
+  echo " -F     Do not format notebooks. Formatting requires the tensorflow-docs pip package."
   echo " -o=dir Set a different output directory (default: site/en-snapshot)"
   echo " -h     Print this help and exit"
 }
 
-while getopts "co:h" opt; do
+while getopts "cFo:h" opt; do
   case $opt in
     c) COMMIT_FLAG=1;;
+    F) NO_FORMAT_FLAG=1;;
     o) SNAPSHOT_ROOT="$OPTARG";;
     h | *)
       usage
@@ -34,21 +36,21 @@ declare -A PROJECTS=(
   [agents]="tensorflow/agents:master:docs:agents"
   [datasets]="tensorflow/datasets:master:docs:datasets"
   [docs]="tensorflow/docs:master:site/en:."
-  [federated]="tensorflow/federated:master:docs:federated"
+  [federated]="tensorflow/federated:main:docs:federated"
   [graphics]="tensorflow/graphics:master:tensorflow_graphics/g3doc:graphics"
   [hub]="tensorflow/hub:master:docs:hub"
   [hub_tutorials]="tensorflow/hub:master:examples/colab:hub/tutorials"
   [io]="tensorflow/io:master:docs:io"
   [js]="tensorflow/tfjs-website:master:docs:js"
-  [keras_guides]="keras-team/keras-io:master:tf:guide/keras"
+  [keras_guides]="tensorflow/docs:snapshot-keras:site/en/guide/keras:guide/keras"
   [lattice]="tensorflow/lattice:master:docs:lattice"
   [lite]="tensorflow/tensorflow:master:tensorflow/lite/g3doc:lite"
   [mlir]="tensorflow/tensorflow:master:tensorflow/compiler/mlir/g3doc:mlir"
   [model_optimization]="tensorflow/model-optimization:master:tensorflow_model_optimization/g3doc:model_optimization"
   [neural_structured_learning]="tensorflow/neural-structured-learning:master:g3doc:neural_structured_learning"
-  [probability]="tensorflow/probability:master:tensorflow_probability/g3doc:probability"
+  [probability]="tensorflow/probability:main:tensorflow_probability/g3doc:probability"
+  [probability_examples]="tensorflow/probability:main:tensorflow_probability/examples/jupyter_notebooks:probability/examples"
   [quantum]="tensorflow/quantum:master:docs:quantum"
-  [swift]="tensorflow/swift:master:docs/site:swift"
   [tensorboard]="tensorflow/tensorboard:master:docs:tensorboard"
   [tfx]="tensorflow/tfx:master:docs:tfx"
   [xla]="tensorflow/tensorflow:master:tensorflow/compiler/xla/g3doc:xla"
@@ -57,6 +59,7 @@ declare -A PROJECTS=(
 LOG_NAME="[$(basename $0)]"
 REPO_ROOT="$(cd $(dirname ${BASH_SOURCE[0]}) >/dev/null 2>&1 && cd .. && pwd)"
 TEMP_DIR=$(mktemp -d -t "$(basename $0 '.sh').XXXXX")
+TEMP_SITE_ROOT="$TEMP_DIR/_siteroot"
 TIMESTAMP=$(date '+%s')
 
 declare -A LAST_COMMITS  # Last commit ID for each project
@@ -75,6 +78,15 @@ if [[ ! -d "$SNAPSHOT_ROOT" ]]; then
   exit 1
 fi
 
+# Notebook formatting requires the tensorflow-docs package.
+# https://github.com/tensorflow/docs/tree/master/tools/tensorflow_docs/tools
+if [[ -z "$NO_FORMAT_FLAG" ]]; then
+  if ! python3 -m pip list | grep "tensorflow-docs" > /dev/null 2>&1; then
+    echo "${LOG_NAME} Error: Can't find the tensorflow-docs pip package for formatting. (Use -F to disable.)" >&2
+    exit 1
+  fi
+fi
+
 # Git status
 if [[ -n "$COMMIT_FLAG" ]]; then
   # Want a clean branch if making a commit.
@@ -85,7 +97,7 @@ if [[ -n "$COMMIT_FLAG" ]]; then
   fi
 
   # Create new branch if on master
-  if [[ $(git rev-parse --abbrev-ref HEAD) == "master" ]]; then
+  if [[ $(git branch --show-current) == "master" ]]; then
     branch_name="en-snapshot-${TIMESTAMP}"
     echo "${LOG_NAME} Create new branch for snapshot: ${branch_name}"
     git checkout -b "${branch_name}"
@@ -101,78 +113,57 @@ echo "${LOG_NAME} Download projects to: ${TEMP_DIR}"
 for project in "${!PROJECTS[@]}"; do
   repo=$(echo "${PROJECTS[$project]}" | cut -f1 -d':')
   branch=$(echo "${PROJECTS[$project]}" | cut -f2 -d':')
+  src_path=$(echo "${PROJECTS[$project]}" | cut -f3 -d':')
+  dest_path=$(echo "${PROJECTS[$project]}" | cut -f4 -d':')
 
   # Download shallow clone of each project in temp.
   cd "$TEMP_DIR"
-  git clone "git@github.com:${repo}.git" \
+  git clone "https://github.com/${repo}.git" \
       --branch "$branch" --single-branch --depth 1 "$project"
 
   # Store last commit id for project.
   cd "./${project}"
   last_commit=$(git log --format="%H" -n 1)
   LAST_COMMITS[$project]="$last_commit"
+
+  # Assemble shadow site
+  mkdir -p "$TEMP_SITE_ROOT/$dest_path"
+  cp -R "$src_path"/* "$TEMP_SITE_ROOT/$dest_path"/
 done
 
+###
+## PRUNE
 ##
-## SYNC PROJECTS
+
+# Keep only doc formats.
+find "$TEMP_SITE_ROOT" \
+     -type f \( ! -name "*.ipynb" ! -name "*.md" ! -name "*.html" \) \
+  | xargs rm
+
+# Remove files we don't publish or don't translate.
+find "$TEMP_SITE_ROOT" \
+     -type f \( -name "README*" -or -name "_*" -or -name "index.*" \) -or \
+     -type f \( -path "*/api_docs/*" -or -path "*/r1/*" \) \
+  | xargs rm
+
+# Remove specific pages or sections.
+rm -rf "$TEMP_SITE_ROOT/install/"  # Different process.
+rm -rf "$TEMP_SITE_ROOT/datasets/catalog/"  # Reference
+rm -rf "$TEMP_SITE_ROOT/tensorboard/design"  # Design docs
+rm "$TEMP_SITE_ROOT/xla/operation_semantics.md"  # Reference
+# Cloud integration not available here (b/197880392)
+rm "$TEMP_SITE_ROOT/guide/keras/training_keras_models_on_cloud.ipynb"
+
 ##
-
-rsync_opts=(
-  --checksum
-  --recursive
-  --archive
-  --del
-  --exclude='BUILD'
-  --exclude='Corefile'
-  --exclude='README.md'
-  --exclude='*.dcm'
-  --exclude='*.gitignore'
-  --exclude='*.gwsq'
-  --exclude='*.py'
-  --exclude='*.sql'
-  --exclude='*.swift'
-  --exclude='*.yaml'
-  --exclude='*.yamllint'
-  --exclude='*.yml'
-  --exclude='_*.ipynb'
-  --exclude='index.*'
-  --exclude='operation_semantics.md'
-  --exclude='api_docs/'
-  --exclude='/catalog/'
-  --exclude='images/'
-  --exclude='r1/'
-)
-
-# Root-level excludes for the 'docs' project.
-root_excludes=(
-  --exclude='/install/'
-)
-
-for project in "${!PROJECTS[@]}"; do
-  dest_path=$(echo "${PROJECTS[$project]}" | cut -f4 -d':')
-  if [[ "$project" != "docs" ]]; then
-    root_excludes+=("--exclude=/$dest_path/")
-  fi
-done
+## SYNC
+##
 
 echo "${LOG_NAME} Copy projects to: ${SNAPSHOT_ROOT}"
 
-for project in "${!PROJECTS[@]}"; do
-  src_path=$(echo "${PROJECTS[$project]}" | cut -f3 -d':')
-  dest_path=$(echo "${PROJECTS[$project]}" | cut -f4 -d':')
-  src_path_full="$TEMP_DIR/$project/$src_path"
-  dest_path_full="$SNAPSHOT_ROOT/$dest_path"
-
-  if [[ "$project" == "docs" ]]; then
-    rsync_opts+=( "${root_excludes[@]}" )
-  fi
-
-  mkdir -p "$dest_path_full"
-  rsync "${rsync_opts[@]}" "${src_path_full}/" "${dest_path_full}/"
-done
+rsync --archive --del --checksum "$TEMP_SITE_ROOT/" "$SNAPSHOT_ROOT/"
 
 ##
-## STATUS REPORTING
+## STATUS REPORT
 ##
 
 COMMIT_MSG_LIST=""
@@ -180,6 +171,7 @@ README_MSG_LIST=""
 
 for project in "${!LAST_COMMITS[@]}"; do
   last_commit="${LAST_COMMITS[$project]}"
+  short_id=$(echo "$last_commit" | head -c 8)
   repo=$(echo "${PROJECTS[$project]}" | cut -f1 -d':')
   branch=$(echo "${PROJECTS[$project]}" | cut -f2 -d':')
   src_path=$(echo "${PROJECTS[$project]}" | cut -f3 -d':')
@@ -188,8 +180,8 @@ for project in "${!LAST_COMMITS[@]}"; do
   commit_url="https://github.com/${repo}/commit/${last_commit}"
 
   # Append to both logs
-  COMMIT_MSG_LIST+="- ${repo}: ${commit_url}\n"
-  README_MSG_LIST+="- [${repo}](${project_url}): [${last_commit}](${commit_url})\n"
+  COMMIT_MSG_LIST+="- ${project}: ${commit_url}\n"
+  README_MSG_LIST+="- [${project}](${project_url}) @ <a href='${commit_url}'><code>${short_id}</code></a>\n"
 done
 
 # Order project list
@@ -212,12 +204,13 @@ COMMIT_MSG="Source snapshot: ${TIMESTAMP_STR}\n\n
 Projects and last commit:\n
 ${COMMIT_MSG_LIST}\n"
 
-README_STR="DO NOT EDIT
+README_STR="__DO NOT EDIT__
 
-This snapshot of the English source documentation is used to submit translations
-through the [GitLocalize project](https://gitlocalize.com/repo/4592/).
+This snapshot of the English documentation is used for tensorflow.org
+translations. Do not edit these files. The source-of-truth files are located in
+the projects listed below.
 
-Note: GitLocalize does *not* support Jupyter notebooks, at this time.
+Please submit translations from the GitLocalize project: https://gitlocalize.com/tensorflow/docs-l10n
 
 Updated: ${TIMESTAMP_STR}
 
@@ -225,14 +218,36 @@ Projects and last commit:
 ${README_MSG_LIST}\n"
 
 
-echo -e "$README_STR" > "${SNAPSHOT_ROOT}/README.md"
+CHANGELOG_FILE="${SNAPSHOT_ROOT}/README.md"
+echo -e "$README_STR" > "$CHANGELOG_FILE"
+
+##
+## FINISH OPTIONS
+##
+
+# Format notebooks
+if [[ -z "$NO_FORMAT_FLAG" ]]; then
+  echo "${LOG_NAME} Format notebooks ..."
+  if ! python3 -m tensorflow_docs.tools.nbfmt "${SNAPSHOT_ROOT}" > /dev/null 2>&1; then
+    echo "${LOG_NAME} nbfmt error, exiting." >&2
+    exit 1
+  fi
+fi
 
 # Commit change
 if [[ -n "$COMMIT_FLAG" ]]; then
   cd "$REPO_ROOT"
-  git add "$SNAPSHOT_ROOT"
-  COMMIT_MSG=$(echo -e "$COMMIT_MSG")
-  git commit --message "$COMMIT_MSG"
+  # Want to commit more than a timestamp update. (READMEs already excluded)
+  modified_docs=$(git ls-files --modified | grep -v "README.md" | wc -l)
+  if (( "$modified_docs" == 0 )); then
+    echo "${LOG_NAME} No commit since there are no file changes."
+    git restore "$CHANGELOG_FILE"
+  else
+    echo "${LOG_NAME} Create snapshot commit ..."
+    git add "$SNAPSHOT_ROOT"
+    COMMIT_MSG=$(echo -e "$COMMIT_MSG")
+    git commit --message "$COMMIT_MSG"
+  fi
 fi
 
 # Cleanup

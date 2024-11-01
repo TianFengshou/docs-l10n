@@ -70,8 +70,7 @@ components will be expecting to find the model.
 
 ```python
   tfrw = rewriter_factory.create_rewriter(
-      rewriter_factory.TFLITE_REWRITER, name='tflite_rewriter',
-      enable_experimental_new_converter=True)
+      rewriter_factory.TFLITE_REWRITER, name='tflite_rewriter')
   converters.rewrite_saved_model(temp_saving_model_dir,
                                  fn_args.serving_model_dir,
                                  tfrw,
@@ -100,7 +99,7 @@ shows how to configure an Evaluator that analyzes a TFLite model.
       examples=example_gen.outputs['examples'],
       model=trainer_lite.outputs['model'],
       eval_config=eval_config_lite,
-      instance_name='mnist_lite')
+  ).with_id('mnist_lite')
 ```
 
 As shown above, the only change that we need to make is to set the `model_type`
@@ -108,5 +107,6 @@ field to `tf_lite`. No other configuration changes are required to analyze the
 TFLite model. Regardless of whether a TFLite model or the a SavedModel
 is analyzed, the output of the `Evaluator` will have exactly the same structure.
 
-
+However, please note that the Evaluator assumes that the TFLite model is saved
+in a file named `tflite` within trainer_lite.outputs['model'].
 

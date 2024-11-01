@@ -36,7 +36,7 @@ Tuner:
 
 ```python
 ...
-from kerastuner.engine import base_tuner
+from keras_tuner.engine import base_tuner
 
 TunerFnResult = NamedTuple('TunerFnResult', [('tuner', base_tuner.BaseTuner),
                                              ('fit_kwargs', Dict[Text, Any])])
@@ -80,7 +80,6 @@ tuner = Tuner(
 
 trainer = Trainer(
     module_file=module_file,  # Contains `run_fn`.
-    custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
     examples=transform.outputs['transformed_examples'],
     transform_graph=transform.outputs['transform_graph'],
     schema=schema_gen.outputs['schema'],
@@ -97,12 +96,12 @@ can remove Tuner from your pipeline and use `ImporterNode` to import the Tuner
 artifact from a previous training run to feed to Trainer.
 
 ```python
-hparams_importer = ImporterNode(
-    instance_name='import_hparams',
+hparams_importer = Importer(
     # This can be Tuner's output file or manually edited file. The file contains
-    # text format of hyperparameters (kerastuner.HyperParameters.get_config())
+    # text format of hyperparameters (keras_tuner.HyperParameters.get_config())
     source_uri='path/to/best_hyperparameters.txt',
-    artifact_type=HyperParameters)
+    artifact_type=HyperParameters,
+).with_id('import_hparams')
 
 trainer = Trainer(
     ...
@@ -116,23 +115,23 @@ trainer = Trainer(
 When running on the Google Cloud Platform (GCP), the Tuner component can take
 advantage of two services:
 
-*   [AI Platform Optimizer](https://cloud.google.com/ai-platform/optimizer/docs/overview)
+*   [AI Platform Vizier](https://cloud.google.com/ai-platform/optimizer/docs/overview)
     (via CloudTuner implementation)
 *   [AI Platform Training](https://cloud.google.com/ai-platform/training/docs)
-    (as a flock manager for distibuted tuning)
+    (as a flock manager for distributed tuning)
 
-### AI Platform Optimizer as the backend of hyperparameter tuning
+### AI Platform Vizier as the backend of hyperparameter tuning
 
-[AI Platform Optimizer](https://cloud.google.com/ai-platform/optimizer/docs/overview)
+[AI Platform Vizier](https://cloud.google.com/ai-platform/optimizer/docs/overview)
 is a managed service that performs black box optimization, based on the
 [Google Vizier](https://storage.googleapis.com/pub-tools-public-publication-data/pdf/bcb15507f4b52991a0783013df4222240e942381.pdf)
 technology.
 
-[CloudTuner](https://github.com/GoogleCloudPlatform/tensorflow-gcp-tools/blob/master/python/tensorflow_enterprise_addons/cloudtuner/cloud_tuner.py)
+[CloudTuner](https://github.com/tensorflow/cloud/blob/master/src/python/tensorflow_cloud/tuner/tuner.py)
 is an implementation of
 [KerasTuner](https://www.tensorflow.org/tutorials/keras/keras_tuner) which talks
-to the AI Platform Optimizer service as the study backend. Since CloudTuner is a
-subclass of `kerastuner.Tuner`, it can be used as a drop-in replacement in the
+to the AI Platform Vizier service as the study backend. Since CloudTuner is a
+subclass of `keras_tuner.Tuner`, it can be used as a drop-in replacement in the
 `tuner_fn` module, and execute as a part of the TFX Tuner component.
 
 Below is a code snippet which shows how to use `CloudTuner`. Notice that
@@ -141,20 +140,19 @@ the `project_id` and `region`.
 
 ```python
 ...
-from tensorflow_enterprise_addons import cloudtuner
+from tensorflow_cloud import CloudTuner
 
 ...
 def tuner_fn(fn_args: FnArgs) -> TunerFnResult:
   """An implementation of tuner_fn that instantiates CloudTuner."""
 
   ...
-  tuner = cloudtuner.CloudTuner(
+  tuner = CloudTuner(
       _build_model,
       hyperparameters=...,
       ...
       project_id=...,       # GCP Project ID
-      region=...,           # GCP Region where Optimizer service is run.
-      study_id=...,         # Unique ID of the tuning study
+      region=...,           # GCP Region where Vizier service is run.
   )
 
   ...
@@ -179,17 +177,13 @@ is the configuration given to this component. This is a drop-in replacement of
 the stock Tuner component.
 
 ```python
-from tfx.extensions.google_cloud_ai_platform.tuner.component import Tuner
-from tfx.extensions.google_cloud_ai_platform.trainer import executor as ai_platform_trainer_executor
-
-...
-tuner = Tuner(
+tuner = google_cloud_ai_platform.Tuner(
     ...   # Same kwargs as the above stock Tuner component.
-    tune_args=tuner_pb2.TuneArgs(num_parallel_trials=3),  # 3-worker parallel
+    tune_args=proto.TuneArgs(num_parallel_trials=3),  # 3-worker parallel
     custom_config={
         # Configures Cloud AI Platform-specific configs . For for details, see
         # https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#traininginput.
-        ai_platform_trainer_executor.TRAINING_ARGS_KEY:
+        TUNING_ARGS_KEY:
             {
                 'project': ...,
                 'region': ...,
@@ -205,31 +199,41 @@ tuner = Tuner(
 
 The behavior and the output of the extension Tuner component is the same as the
 stock Tuner component, except that multiple hyperparameter searches are executed
-in parallel on differnt worker machines, and as a result, the `num_trials` will
+in parallel on different worker machines, and as a result, the `num_trials` will
 be completed faster. This is particularly effective when the search algorithm is
-embarassingly parallelizable, such as `RandomSearch`. However, if the search
+embarrassingly parallelizable, such as `RandomSearch`. However, if the search
 algorithm uses information from results of prior trials, such as Google Vizier
-algorithm implemented in the AI Platform Optimizer does, an excessively parallel
+algorithm implemented in the AI Platform Vizier does, an excessively parallel
 search would negatively affect the efficacy of the search.
 
 Note: Each trial in each parallel search is conducted on a single machine in the
-worker flock, i.e., the model training does not take advantage of multi-worker
-distributed training. Support for multi-worker distributed training in the
-context of parallel Tuner execution for each trial is planned to be added to
-CloudTuner.
+worker flock, i.e., each trial does not take advantage of multi-worker
+distributed training. If multi-worker distribution is desired for each trial,
+refer to
+[`DistributingCloudTuner`](https://github.com/tensorflow/cloud/blob/b9c8752f5c53f8722dfc0b5c7e05be52e62597a8/src/python/tensorflow_cloud/tuner/tuner.py#L384-L676),
+instead of `CloudTuner`.
 
 Note: Both `CloudTuner` and the Google Cloud AI Platform extensions Tuner
 component can be used together, in which case it allows distributed parallel
-tuning backed by AI Platform Optimizer's hyperparameter search algorithm.
+tuning backed by the AI Platform Vizier's hyperparameter search algorithm.
 However, in order to do so, the Cloud AI Platform Job must be given access to
-the AI Platform Optimizer service.
+the AI Platform Vizier service. See this
+[guide](https://cloud.google.com/ai-platform/training/docs/custom-service-account#custom)
+to set up a custom service account. After that, you should specify the custom
+service account for your training job in the pipeline code. More details see
+[E2E CloudTuner on GCP example](https://github.com/tensorflow/tfx/blob/master/tfx/examples/penguin/penguin_pipeline_kubeflow.py).
 
 ## Links
 
-[E2E Example](https://github.com/tensorflow/tfx/blob/master/tfx/examples/iris/iris_pipeline_native_keras.py)
+[E2E Example](https://github.com/tensorflow/tfx/blob/master/tfx/examples/penguin/penguin_pipeline_local.py)
+
+[E2E CloudTuner on GCP Example](https://github.com/tensorflow/tfx/blob/master/tfx/examples/penguin/penguin_pipeline_kubeflow.py)
 
 [KerasTuner tutorial](https://www.tensorflow.org/tutorials/keras/keras_tuner)
 
-[CloudTuner tutorial](https://github.com/GoogleCloudPlatform/ai-platform-samples/blob/master/notebooks/samples/optimizer/ai_platform_optimizer_tuner.ipynb)
+[CloudTuner tutorial](https://github.com/GoogleCloudPlatform/ai-platform-samples/blob/master/notebooks/samples/optimizer/ai_platform_vizier_tuner.ipynb)
 
 [Proposal](https://github.com/tensorflow/community/blob/master/rfcs/20200420-tfx-tuner-component.md)
+
+More details are available in the
+[Tuner API reference](https://www.tensorflow.org/tfx/api_docs/python/tfx/v1/components/Tuner).

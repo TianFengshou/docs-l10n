@@ -2,8 +2,11 @@
 
 ## Introduction
 
-This tutorial is designed to introduce TensorFlow Extended (TFX) and Cloud AI
-Platform Pipelines, and help you learn to create your own machine learning
+This tutorial is designed to introduce
+[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx) and
+[AIPlatform Pipelines]
+(https://cloud.google.com/ai-platform/pipelines/docs/introduction), and help you
+learn to create your own machine learning
 pipelines on Google Cloud. It shows integration with TFX, AI Platform Pipelines,
 and Kubeflow, as well as interaction with TFX in Jupyter notebooks.
 
@@ -101,7 +104,8 @@ Note: You must have a verified credit card on file before creating the project.
     click the project dropdown next to the **Google Cloud Platform** header, and
     select **New Project**.
 1.  Give your project a name and enter other project details
-1.  Once you have created a project, select it from the project drop-down.
+1.  **Once you have created a project, make sure to select it from the project
+drop-down.**
 
 ## 2. Set up and deploy an AI Platform Pipeline on a new Kubernetes cluster
 
@@ -122,24 +126,33 @@ for resources to be provisioned.
 
     <img style="width: 65%;" src="images/cloud-ai-platform-pipelines/configure.png">
 
-    You may have to wait several minutes before moving on, while the Kubernetes
-    Engine APIs are being enabled for you.
+1.  Click "Enable" to enable the Kubernetes Engine API
+
+    <img style="width: 65%;" src="images/cloud-ai-platform-pipelines/enable_api.png">
+
+    Note: You may have to wait several minutes before moving on, while the Kubernetes Engine APIs are being enabled for you.
 
 1.  On the **Deploy Kubeflow Pipelines** page:
 
     1.  Select a [zone](https://cloud.google.com/compute/docs/regions-zones) (or
-        "region") for your cluster.
+        "region") for your cluster. The network and subnetwork can be set, but
+        for the purposes of this tutorial we will leave them as defaults.
+
     1.  **IMPORTANT** Check the box labeled *Allow access to the following cloud
         APIs*. (This is required for this cluster to access the other pieces of
         your project. If you miss this step, fixing it later is a bit tricky.)
 
         <img style="width: 50%;" src="images/cloud-ai-platform-pipelines/check-the-box.png">
 
-    1.  Click **Create**, and wait several minutes until the cluster has been
-        created.
+    1.  Click **Create New Cluster**, and wait several minutes until the cluster
+        has been created.  This will take a few minutes.  When it completes you
+        will see a message like:
 
-    1.  Select a namespace and instance name (using the defaults is fine). You
-        don't have to check *Use managed storage*.
+        > Cluster "cluster-1" successfully created in zone "us-central1-a".
+
+    1.  Select a namespace and instance name (using the defaults is fine). For
+        the purposes of this tutorial do not check *executor.emissary* or
+        *managedstorage.enabled*.
 
     1.  Click **Deploy**, and wait several moments until the pipeline has been
         deployed. By deploying Kubeflow Pipelines, you accept the Terms of
@@ -148,30 +161,38 @@ for resources to be provisioned.
 ## 3. Set up Cloud AI Platform Notebook instance.
 
 1.  Go to the
-    [AI Platform Notebooks](https://console.cloud.google.com/ai-platform/notebooks)
-    page.
+    [Vertex AI Workbench](https://console.cloud.google.com/vertex-ai/workbench)
+    page.  The first time you run Workbench you will need to enable the
+    Notebooks API.
 
-    Under the Main Navigation Menu: ≡ -> AI Platform -> Notebooks
+    Under the Main Navigation Menu: ≡ -> Vertex AI -> Workbench
 
 1.  If prompted, enable the Compute Engine API.
 
-1.  Create a **New Instance** with TensorFlow 2.1 (or higher) installed.
+1.  Create a **New Notebook** with TensorFlow Enterprise 2.7 (or above)
+    installed.
 
-    New Instance -> TensorFlow 2.1 -> Without GPU
+    <img style="width: 65%;" src="images/cloud-ai-platform-pipelines/new-notebook.png">
 
-    To stay within the Free Tier limits, do not accept the default settings
-    here. You need to reduce the number of vCPUs available to this instance from
-    4 to 2:
+    New Notebook -> TensorFlow Enterprise 2.7 -> Without GPU
 
-    1.  Select **Customize** at the bottom of the **New notebook instance**
-        form.
-    1.  Select a **Machine configuration** with 1 or 2 vCPUs.
+    Select a region and zone, and give the notebook instance a name.
+
+    To stay within the Free Tier limits, you may need to change the default
+    settings here to reduce the number of vCPUs available to this instance
+    from 4 to 2:
+
+    1.  Select **Advanced Options** at the bottom of the **New notebook** form.
+    1.  Under **Machine configuration** you may want to select a configuration
+        with 1 or 2 vCPUs if you need to stay in the free tier.
 
         <img style="width: 65%;" src="images/cloud-ai-platform-pipelines/two-cpus.png">
+    1. Wait for the new notebook to be created, and then click **Enable
+       Notebooks API**
 
 Note: You may experience slow performance in your notebook if you use 1 or 2
-vCPUs instead of the default. This should not seriously hinder your completion
-of this tutorial. If would like to use the default settings,
+vCPUs instead of the default or higher. This should not seriously hinder your
+completion of this tutorial. If would like to use the default settings,
 [upgrade your account](https://cloud.google.com/free/docs/gcp-free-tier#to_upgrade_your_account)
 to at least 12 vCPUs. This will accrue charges. See
 [Google Kubernetes Engine Pricing](https://cloud.google.com/kubernetes-engine/pricing/)
@@ -181,21 +202,23 @@ information about the [Google Cloud Free Tier](https://cloud.google.com/free).
 
 ## 4. Launch the Getting Started Notebook
 
-1.  Go to the
-    [**AI Platform Pipelines Clusters**](https://console.cloud.google.com/ai-platform/pipelines)
-    page.
+1.  Go to the [**AI Platform Pipelines Clusters**]
+    (https://console.cloud.google.com/ai-platform/pipelines) page.
 
     Under the Main Navigation Menu: ≡ -> AI Platform -> Pipelines
 
 1.  On the line for the cluster you are using in this tutorial, click **Open
     Pipelines Dashboard**.
 
-    ![open-dashboard](images/cloud-ai-platform-pipelines/open-dashboard.png)
+    <img src="images/cloud-ai-platform-pipelines/open-dashboard.png">
 
-1.  On the **Getting Started** page, click **Open TF 2.1 Notebook**.
+1.  On the **Getting Started** page, click **Open a Cloud AI Platform
+    Notebook on Google Cloud**.
+
+    <img src="images/cloud-ai-platform-pipelines/open-template.png">
 
 1.  Select the Notebook instance you are using for this tutorial and
-    **Continue**.
+    **Continue**, and then **Confirm**.
 
     ![select-notebook](images/cloud-ai-platform-pipelines/select-notebook.png)
 
@@ -210,15 +233,7 @@ here as a reference.
 The Getting Started Notebook starts by installing
 [TFX](https://www.tensorflow.org/tfx) and
 [Kubeflow Pipelines (KFP)](https://www.kubeflow.org/docs/pipelines/) into the VM
-which Jupyter Lab is running in, along with the
-[Skaffold](https://github.com/GoogleContainerTools/skaffold) module:
-
-![Install tf and kfp](images/cloud-ai-platform-pipelines/pip-install-nb-cell.png)
-
-It then sets the `PATH` to include user Python binary directory and a directory
-containing `skaffold`:
-
-![set path](images/cloud-ai-platform-pipelines/set-path-nb-cell.png)
+which Jupyter Lab is running in.
 
 It then checks which version of TFX is installed, does an import, and sets and
 prints the Project ID:
@@ -241,7 +256,7 @@ Now set your KFP cluster endpoint.
 
 This can be found from the URL of the Pipelines dashboard. Go to the Kubeflow
 Pipeline dashboard and look at the URL. The endpoint is everything in the URL
-*after* the `https://`, *up to, and including*, `googleusercontent.com`.
+*starting with* the `https://`, *up to, and including*, `googleusercontent.com`.
 
 ```python
 ENDPOINT='' # Enter YOUR ENDPOINT here.
@@ -313,7 +328,7 @@ Here is brief description of the Python files.
     -   `keras` - This directory contains a Keras based model.
         -   `constants.py` — defines constants of the model
         -   `model.py` / `model_test.py` — defines DNN model using Keras
--   `beam_dag_runner.py` / `kubeflow_dag_runner.py` — define runners for each
+-   `beam_runner.py` / `kubeflow_runner.py` — define runners for each
     orchestration engine
 
 ## 7. Run your first TFX pipeline on Kubeflow
@@ -326,34 +341,31 @@ Running pipelines create artifacts which have to be stored in
 [ML-Metadata](https://github.com/google/ml-metadata). Artifacts refer to
 payloads, which are files that must be stored in a file system or block storage.
 For this tutorial, we'll use GCS to store our metadata payloads, using the
-bucket that was created automatically during setup. The notebook gets the names
-of the current buckets:
+bucket that was created automatically during setup.
+Its name will be `<your-project-id>-kubeflowpipelines-default`.
 
-Get a list of bucket names:
-
-```
-!gsutil ls | cut -d / -f 3
-```
-
-Copy the name of the bucket you are using to the clipboard.
-
-Caution: You must open the `pipeline`/`configs.py` file and set the
-`GCS_BUCKET_NAME` constant to the name of the bucket.
 
 ### Create the pipeline
+
+The notebook will upload our sample data to GCS bucket so that we can use it in
+our pipeline later.
+
+```python
+!gsutil cp data/data.csv gs://{GOOGLE_CLOUD_PROJECT}-kubeflowpipelines-default/tfx-template/data/taxi/data.csv
+```
 
 The notebook then uses the `tfx pipeline create` command to create the pipeline.
 
 ```python
 !tfx pipeline create  \
---pipeline-path=kubeflow_dag_runner.py \
+--pipeline-path=kubeflow_runner.py \
 --endpoint={ENDPOINT} \
---build-target-image={CUSTOM_TFX_IMAGE}
+--build-image
 ```
 
-While creating a pipeline, `Dockerfile` and `build.yaml` will be generated to
-build a Docker image. Don't forget to add these files to your source control
-system (for example, git) along with other source files.
+While creating a pipeline, `Dockerfile` will be generated to build a Docker
+image. Don't forget to add these files to your source control system (for
+example, git) along with other source files.
 
 ### Run the pipeline
 
@@ -416,7 +428,7 @@ to your pipeline:
 ```python
 # Update the pipeline
 ! tfx pipeline update \
-  --pipeline-path=kubeflow_dag_runner.py \
+  --pipeline-path=kubeflow_runner.py \
   --endpoint={ENDPOINT}
 
 ! tfx run create --pipeline-name "{PIPELINE_NAME}"
@@ -474,7 +486,7 @@ In `pipeline`/`pipeline.py`, find and uncomment the line which appends
 ```python
 # Update the pipeline
 ! tfx pipeline update \
-  --pipeline-path=kubeflow_dag_runner.py \
+  --pipeline-path=kubeflow_runner.py \
   --endpoint={ENDPOINT}
 
 ! tfx run create --pipeline-name "{PIPELINE_NAME}"
@@ -522,7 +534,7 @@ pipeline:
 ```python
 # Update the pipeline
 ! tfx pipeline update \
-  --pipeline-path=kubeflow_dag_runner.py \
+  --pipeline-path=kubeflow_runner.py \
   --endpoint={ENDPOINT}
 
 ! tfx run create --pipeline-name "{PIPELINE_NAME}"
@@ -539,7 +551,7 @@ your pipeline.
 
 The example presented here is really only meant to get you started. For a more
 advanced example see the
-[TensorBoard Tutorial](https://www.tensorflow.org/tensorboard/r1/summaries).
+[TensorBoard Tutorial](https://www.tensorflow.org/tensorboard/get_started).
 
 ## 11. Analyzing model performance
 
@@ -573,7 +585,7 @@ components.append(evaluator)
 ```python
 # Update the pipeline
 ! tfx pipeline update \
-  --pipeline-path=kubeflow_dag_runner.py \
+  --pipeline-path=kubeflow_runner.py \
   --endpoint={ENDPOINT}
 
 ! tfx run create --pipeline-name "{PIPELINE_NAME}"
@@ -708,8 +720,8 @@ before proceeding.**
 file list. The name of the directory is the name of the pipeline which is
 `my_pipeline` if you didn't change the pipeline name.
 
-**Double-click to open `kubeflow_dag_runner.py`**. Uncomment two arguments,
-`query` and `beam_pipeline_args`, for the `create_pipeline` function.
+**Double-click to open `kubeflow_runner.py`**. Uncomment two arguments, `query`
+and `beam_pipeline_args`, for the `create_pipeline` function.
 
 Now the pipeline is ready to use BigQuery as an example source. Update the
 pipeline as before and create a new execution run as we did in step 5 and 6.
@@ -719,8 +731,8 @@ pipeline as before and create a new execution run as we did in step 5 and 6.
 ```python
 # Update the pipeline
 !tfx pipeline update \
---pipeline-path=kubeflow_dag_runner.py \
---endpoint={ENDPOINT}
+  --pipeline-path=kubeflow_runner.py \
+  --endpoint={ENDPOINT}
 
 !tfx run create --pipeline-name {PIPELINE_NAME} --endpoint={ENDPOINT}
 ```
@@ -767,39 +779,27 @@ gcloud services enable dataflow.googleapis.com
 `configs.py`**. Uncomment the definition of `GOOGLE_CLOUD_REGION`, and
 `DATAFLOW_BEAM_PIPELINE_ARGS`.
 
-**Double-click to open `pipeline.py`**. Change the value of `enable_cache` to
-`False`.
-
 **Change directory one level up.** Click the name of the directory above the
 file list. The name of the directory is the name of the pipeline which is
 `my_pipeline` if you didn't change.
 
-**Double-click to open `kubeflow_dag_runner.py`**. Uncomment
-`beam_pipeline_args`. (Also make sure to comment out current
-`beam_pipeline_args` that you added in Step 7.)
-
->Note that we deliberately disabled caching. Because we have already run the
-pipeline successfully, we will get cached execution result for all components
-if cache is enabled.
+**Double-click to open `kubeflow_runner.py`**. Uncomment `beam_pipeline_args`.
+(Also make sure to comment out current `beam_pipeline_args` that you added in
+Step 7.)
 
 #### Update the pipeline and re-run it
 
 ```python
 # Update the pipeline
 !tfx pipeline update \
---pipeline-path=kubeflow_dag_runner.py \
---endpoint={ENDPOINT}
+  --pipeline-path=kubeflow_runner.py \
+  --endpoint={ENDPOINT}
 
 !tfx run create --pipeline-name {PIPELINE_NAME} --endpoint={ENDPOINT}
 ```
 
 You can find your Dataflow jobs in
 [Dataflow in Cloud Console](http://console.cloud.google.com/dataflow).
-
-Please reset `enable_cache` to `True` to benefit from caching execution results.
-
-**Double-click to open `pipeline.py`**. Reset the value of `enable_cache` to
-`True`.
 
 ### Try Cloud AI Platform Training and Prediction with KFP
 
@@ -822,7 +822,7 @@ so we should set `masterConfig.imageUri` in `GCP_AI_PLATFORM_TRAINING_ARGS` to
 the same value as `CUSTOM_TFX_IMAGE` above.
 
 **Change directory one level up, and double-click to open
-`kubeflow_dag_runner.py`**. Uncomment `ai_platform_training_args` and
+`kubeflow_runner.py`**. Uncomment `ai_platform_training_args` and
 `ai_platform_serving_args`.
 
 > Note: If you receive a permissions error in the Training step, you may need to
@@ -836,8 +836,8 @@ the same value as `CUSTOM_TFX_IMAGE` above.
 ```python
 # Update the pipeline
 !tfx pipeline update \
---pipeline-path=kubeflow_dag_runner.py \
---endpoint={ENDPOINT}
+  --pipeline-path=kubeflow_runner.py \
+  --endpoint={ENDPOINT}
 
 !tfx run create --pipeline-name {PIPELINE_NAME} --endpoint={ENDPOINT}
 ```
@@ -858,7 +858,7 @@ You need to modify the pipeline definition to accommodate your data.
 
 ### If your data is stored in files
 
-1.  Modify `DATA_PATH` in `kubeflow_dag_runner.py`, indicating the location.
+1.  Modify `DATA_PATH` in `kubeflow_runner.py`, indicating the location.
 
 ### If your data is stored in BigQuery
 
